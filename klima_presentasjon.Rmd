@@ -1,0 +1,465 @@
+---
+title: "Klimabistand"
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(here)
+library(kableExtra)
+library(highcharter)
+```
+
+Her presenteres hovedtall på utbetalt klimabistand fra Norge de siste årene. Klimabistand omfatter støtte til klimatilpasning og reduksjon av klimagassutslipp i utviklingsland. Beløpene på klimabistand er beregninger, som forklares nærmere i metodebeskrivelsen.
+
+## Totaloversikt {.tabset}
+
+### Total
+
+```{r data}
+df_total <- readxl::read_xlsx(here("output", "klimatabeller.xlsx"), sheet = 1)
+
+df_total <- df_total %>%
+  pivot_longer(cols = !channel,
+               names_to = "year",
+               values_to = "nok_mill")
+
+df_total <- df_total %>%
+  filter(year > 2014)
+
+df_total <- df_total %>%
+  pivot_wider(names_from = channel,
+              values_from = nok_mill) %>%
+  rowwise() %>%
+  mutate(earmarked = sum(
+    c(`Earmarked climate aid (ex. Norfund)`,
+      `Norfund capitalisation (climate share)`))) %>%
+  ungroup()
+
+df_total <- df_total %>%
+  select(year, earmarked, `Imputed multialteral climate share`, `Total climate aid`) %>%
+  rename("Øremerket klimabistand" = earmarked,
+         "Klimarelatert multilateral kjernestøtte" = `Imputed multialteral climate share`,
+         "Total klimabistand" = `Total climate aid`)
+
+df_total <- df_total %>%
+  mutate(across(where(is.numeric), ~ round(.x, 0)))
+```
+
+```{r}
+hc <- df_total %>%
+  hchart('column',
+         hcaes(x = year, y = `Total klimabistand`),
+         name = "Total",
+         color = hex_to_rgba("#23716D", 0.5),
+         showInLegend = TRUE) %>%
+  hc_title(text = "Total klimabistand",
+           align = "left") %>%
+  hc_subtitle(text = "Beregnet klimabistand i millioner kroner",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Millioner kroner"),
+           labels = list(format = "{value}")) %>%
+  hc_exporting(enabled = TRUE)
+
+hc
+
+```
+
+### Bistandstype
+
+```{r}
+
+df_total_2 <- df_total %>%
+  select(-`Total klimabistand`) %>%
+  pivot_longer(cols = -year,
+               names_to = "type",
+               values_to = "nok_mill")
+
+hc2 <- df_total_2 %>%
+  hchart(
+    'column',
+    hcaes(x = year, y = nok_mill, group = type),
+    stacking = "normal",
+    color = c(hex_to_rgba("#9E5B4C", 0.5),
+              hex_to_rgba("#437793", 0.5)),
+    showInLegend = TRUE) %>%
+
+  hc_title(text = "Total klimabistand, fordelt på bistandstype",
+           align = "left") %>%
+  hc_subtitle(text = "Beregnet øremerket klimabisand og beregnet klimaandel av multilateral kjernestøtte",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Millioner kroner"),
+           labels = list(format = "{value}")) %>%
+  hc_exporting(enabled = TRUE)
+
+hc2
+```
+
+<!-- ### Tabelloversikt -->
+
+```{r table, results='asis', include=FALSE}
+df_total_tbl <- df_total %>%
+  pivot_longer(cols = c(`Øremerket klimabistand`, `Klimarelatert multilateral kjernestøtte`, `Total klimabistand`),
+               names_to = "kanal",
+               values_to = "nok_mill") %>%
+  pivot_wider(names_from = year,
+              values_from = nok_mill)
+
+df_total_tbl %>%
+  kbl() %>%
+  kable_styling()
+```
+
+### Andel av total bistand
+
+```{r}
+raw <- noradstats::read_aiddata(here("data" ,"oda_oof_ten.csv"))
+
+df_total_oda <- raw %>%
+  filter(`Type of Flow` == "ODA") %>%
+  filter(`Type of agreement` != "Rammeavtale") %>%
+  filter(Year > 2014) %>%
+  group_by(Year) %>%
+  summarise(total_oda = sum(`Disbursed (mill NOK)`)) %>%
+  mutate(Year = as.character(Year))
+
+
+df_climate <- readxl::read_xlsx(here("output", "klimatabeller.xlsx"), sheet = 1)
+
+df_climate <- df_climate %>%
+  pivot_longer(cols = !channel,
+               names_to = "Year",
+               values_to = "nok_mill") %>%
+  filter(channel == "Total climate aid") %>%
+  filter(Year > 2014) %>%
+  rename("climate_aid" = nok_mill) %>%
+  select(-channel)
+
+df_pst_total <- left_join(df_total_oda, df_climate, by = c("Year"))
+
+df_pst_total <- df_pst_total %>%
+  mutate(aid_pst = (climate_aid / total_oda) * 100) %>%
+  mutate(aid_pst = round(aid_pst, 1))
+
+hc_pst <- df_pst_total %>%
+  hchart('line',
+         hcaes(x = Year, y = aid_pst),
+         name = "Prosent klimabistand av total bistand",
+         color = hex_to_rgba("#C1872E"),
+         showInLegend = TRUE) %>%
+
+  hc_title(text = "Andel klimabistand av total bistand",
+           align = "left") %>%
+  hc_subtitle(text = "Prosentandel beregnet klimabistand av total utbetalt bistand",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Prosent"),
+           labels = list(format = "{value} %"),
+           min = 0,
+           max = 100) %>%
+  hc_exporting(enabled = TRUE)
+
+hc_pst
+
+```
+
+```{r}
+# text vectors
+
+vec_max_year <- df_total %>%
+  filter(year == max(year)) %>%
+  pull(year)
+
+vec_max_total_mrd <- df_total %>%
+  filter(year == max(year)) %>%
+  select(`Total klimabistand`) %>%
+  mutate(`Total klimabistand` = `Total klimabistand` / 1000) %>%
+  mutate(`Total klimabistand` = round(`Total klimabistand`, 1)) %>%
+  mutate(`Total klimabistand` = str_replace(.data$`Total klimabistand`,"[.]",",")) %>%
+  pull(`Total klimabistand`)
+
+vec_max_earmarked_mrd <- df_total %>%
+  filter(year == max(year)) %>%
+  select(`Øremerket klimabistand`) %>%
+  mutate(`Øremerket klimabistand` = `Øremerket klimabistand` / 1000) %>%
+  mutate(`Øremerket klimabistand` = round(`Øremerket klimabistand`, 1)) %>%
+  mutate(`Øremerket klimabistand` = str_replace(.data$`Øremerket klimabistand`,"[.]",",")) %>%
+  pull(`Øremerket klimabistand`)
+
+
+vec_max_multi_mrd <- df_total %>%
+  filter(year == max(year)) %>%
+  select(`Klimarelatert multilateral kjernestøtte`) %>%
+  mutate(`Klimarelatert multilateral kjernestøtte` = `Klimarelatert multilateral kjernestøtte` / 1000) %>%
+  mutate(`Klimarelatert multilateral kjernestøtte` = round(`Klimarelatert multilateral kjernestøtte`, 1)) %>%
+  mutate(`Klimarelatert multilateral kjernestøtte` = str_replace(.data$`Klimarelatert multilateral kjernestøtte`,"[.]",",")) %>%
+  pull(`Klimarelatert multilateral kjernestøtte`)
+
+vec_pst_of_total <- df_pst_total %>%
+  filter(Year == max(Year)) %>%
+  select(aid_pst) %>%
+  mutate(aid_pst = round(aid_pst, 0)) %>%
+  mutate(aid_pst = str_replace(.data$aid_pst,"[.]",",")) %>%
+  pull(aid_pst)
+  
+```
+
+##  {.unlisted .unnumbered}
+
+**Nøkkeltall 2020**
+
+-   I `r vec_max_year` ble det utbetalt `r vec_max_total_mrd` milliarder kroner i klimabistand.
+
+-   I `r vec_max_year` var `r vec_max_earmarked_mrd` milliarder kroner av klimabistanden øremerket støtte og `r vec_max_multi_mrd` milliarder kroner var klimarelevant kjernestøtte til multilaterale organisasjoner.
+
+-   Klimabistand utgjorde `r vec_pst_of_total` prosent av total bistand i `r vec_max_year`.
+
+## Tilpasning og utslippsreduksjon {.tabset}
+
+Fordelingen av klimabistand på tilpasning og utslippsreduksjon er avgrenset til den øremerkede klimabistanden og gir dermed ikke det fulle bildet. Den multilaterale kjernestøtten til klima holdes utenfor, da den ikke er fordelt på tilpasning og utslippsreduksjon i statistikken. Beløpene og prosentene til tilpasning og utslippsreduksjon kan ikke legges sammen, for da dobbeltelles støtte til tiltak rettet mot både tilpasning og utslippsreduksjon.
+
+### Beløp
+
+```{r}
+df_ad_mit <- readxl::read_xlsx(here("output", "klimatabeller.xlsx"), sheet = 2)
+
+df_ad_mit <- df_ad_mit %>%
+  pivot_longer(cols = !climate_aid_type,
+               names_to = "year",
+               values_to = "nok_mill")
+
+df_ad_mit <- df_ad_mit %>%
+  filter(year > 2014)
+
+df_ad_mit <- df_ad_mit %>%
+  mutate(across(where(is.numeric), ~ round(.x, 0)))
+
+df_ad_mit <- df_ad_mit %>%
+  mutate(climate_aid_type = case_when(
+    climate_aid_type == "Adaptation" ~ "Tilpasning",
+    climate_aid_type == "Mitigation" ~ "Utslippsreduksjon"))
+
+hc3 <- df_ad_mit %>%
+  hchart('line',
+         hcaes(x = year, y = nok_mill, group = climate_aid_type),
+         color = c(hex_to_rgba("#C1872E"), 
+                   hex_to_rgba("#23716D")),
+         showInLegend = TRUE) %>%
+
+  hc_title(text = "Øremerket klimabistand til utslippsreduksjon og tilpasning",
+           align = "left") %>%
+  hc_subtitle(text = "Beløpene for tilpasning og utslippsreduksjon kan ikke legges sammen, for da dobbeltelles støtten til tiltak rettet mot både tilpasning og utslipssreduksjon, og overgår dermed total øremerket klimabistand",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Millioner kroner"),
+           labels = list(format = "{value}")) %>%
+  hc_exporting(enabled = TRUE)
+
+hc3
+```
+
+### Prosent av øremerket klimabistand
+
+```{r}
+df_total_earmarked_climate_aid <- df_total %>%
+  select(year, `Øremerket klimabistand`)
+
+df_ad_mit_pst_cl <- left_join(df_ad_mit, df_total_earmarked_climate_aid, by = "year")
+
+df_ad_mit_pst_cl <- df_ad_mit_pst_cl %>%
+  mutate(pst_of_earmarked_climate = (nok_mill / `Øremerket klimabistand`) * 100) %>%
+  mutate(pst_of_earmarked_climate = round(pst_of_earmarked_climate, 1))
+
+
+hc_pst_cl <- df_ad_mit_pst_cl %>%
+  hchart('line',
+         hcaes(x = year, y = pst_of_earmarked_climate, group = climate_aid_type),
+         color = c(hex_to_rgba("#C1872E"), 
+                   hex_to_rgba("#23716D")),
+         showInLegend = TRUE) %>%
+
+  hc_title(text = "Prosentandel utslippsreduksjon og tilpasning av total øremerket klimabistand",
+           align = "left") %>%
+  hc_subtitle(text = "Prosentandelene til tilpasning og utslippsreduksjon kan ikke legges sammen, for da dobbeltelles støtten til tiltak rettet mot både tilpasning og utslipssreduksjon, og overgår dermed total øremerket klimabistand",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Prosent"),
+           labels = list(format = "{value} %")) %>%
+  hc_exporting(enabled = TRUE)
+
+hc_pst_cl
+```
+
+### Prosent av total øremerket bistand
+
+```{r}
+df_ad_mit_pst <- readxl::read_xlsx(here("output", "klimatabeller.xlsx"), sheet = 3)
+
+df_ad_mit_pst <- df_ad_mit_pst %>%
+  pivot_longer(cols = !climate_aid_type,
+               names_to = "year",
+               values_to = "pst")
+
+df_ad_mit_pst <- df_ad_mit_pst %>%
+  filter(year > 2014)
+
+df_ad_mit_pst <- df_ad_mit_pst %>%
+  mutate(pst = pst * 100) %>%
+  mutate(pst = round(pst, 1))
+
+df_ad_mit_pst <- df_ad_mit_pst %>%
+  mutate(climate_aid_type = case_when(
+    climate_aid_type == "Adaptation" ~ "Tilpasning",
+    climate_aid_type == "Mitigation" ~ "Utslippsreduksjon"))
+
+hc4 <- df_ad_mit_pst %>%
+  hchart('line',
+         hcaes(x = year, y = pst, group = climate_aid_type),
+         color = c(hex_to_rgba("#C1872E"), 
+                   hex_to_rgba("#23716D")),
+         showInLegend = TRUE) %>%
+
+  hc_title(text = "Prosentandel utslippsreduksjon og tilpasning av total øremerket bistand",
+           align = "left") %>%
+  hc_subtitle(text = "Prosentandelene til tilpasning og utslippsreduksjon kan ikke legges sammen, for da dobbeltelles støtten til tiltak rettet mot både tilpasning og utslipssreduksjon, og overgår dermed total øremerket klimabistand",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Prosent"),
+           labels = list(format = "{value} %"),
+           min = 0,
+           max = 100) %>%
+  hc_exporting(enabled = TRUE)
+
+hc4
+```
+
+##  {.unlisted .unnumbered}
+
+```{r}
+vec_pst_of_total <- df_pst_total %>%
+  filter(Year == max(Year)) %>%
+  select(aid_pst) %>%
+  mutate(aid_pst = round(aid_pst, 0)) %>%
+  mutate(aid_pst = str_replace(.data$aid_pst,"[.]",",")) %>%
+  pull(aid_pst)
+
+vec_max_adapt_mill <- df_ad_mit %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Tilpasning") %>%
+  select(nok_mill) %>%
+  pull(nok_mill)
+
+vec_max_mitig_mill <- df_ad_mit %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Utslippsreduksjon") %>%
+  select(nok_mill) %>%
+  pull(nok_mill)
+
+vec_max_adapt_pst_cl <- df_ad_mit_pst_cl %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Tilpasning") %>%
+  mutate(pst = round(pst_of_earmarked_climate, 0)) %>%
+  pull(pst)
+
+vec_max_mitig_pst_cl <- df_ad_mit_pst_cl %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Utslippsreduksjon") %>%
+  mutate(pst = round(pst_of_earmarked_climate, 0)) %>%
+  pull(pst)
+
+
+vec_max_adapt_pst <- df_ad_mit_pst %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Tilpasning") %>%
+  mutate(pst = round(pst, 0)) %>%
+  pull(pst)
+
+vec_max_mitig_pst <- df_ad_mit_pst %>%
+  filter(year == max(year)) %>%
+  filter(climate_aid_type == "Utslippsreduksjon") %>%
+  mutate(pst = round(pst, 0)) %>%
+  pull(pst)
+```
+
+**Nøkkeltall 2020**
+
+-   I `r vec_max_year` ble det utbetalt `r vec_max_earmarked_mrd` milliarder kroner i øremerket klimabistand til tilpasning og utslippsreduksjon.
+
+-   Tilpasning: Det ble det utbetalt `r vec_max_adapt_mill` millioner kroner i øremerket bistand til klimatilpasning i `r vec_max_year`. Det utgjorde `r vec_max_adapt_pst_cl` prosent av den øremerkede klimabistanden, og `r vec_max_adapt_pst` prosent av total øremerket bistand.
+
+-   Utslippsreduksjon: Det det utbetalt `r vec_max_mitig_mill` millioner i øremerket bistand til utslippsreduksjon i `r vec_max_year`. Det utgjorde `r vec_max_mitig_pst_cl` prosent av den øremerkede klimabistanden, og `r vec_max_mitig_pst` prosent av total øremerket bistand.
+
+## Metodebeskrivelse: klimabistand
+
+Klimabistand omfatter beregnet øremerket støtte og beregnet multilateral kjernestøtte til klimatiltak.
+
+-   Øremerket bistand til klima (beregnet): Utbetalinger til tiltak markert med rio-markørene *Climate change adaptation* og *Climate change mitigation*. Inkluderer 100 % av utbetalinger til tiltak om adaptation/mitigation er hovedmål i tiltaket og 40 % av utbetalingene om adaptation/mitigation er et delmål. Beløpene er netto utbetalinger, som innebærer at tilbakeføringer regnes som negativ klimabistand. I tillegg inkluderes en beregnet klimaandel av årlige kapitalinnskudd til Norfund tilsvarende metodikken for å beregne klimarelevant kjernestøtte til multilaterale organisasjoner (under). Identifiserer prosentandelen av Norfunds totale bruttoinvesteringer i fornybar energi, markert med *climate change mitigation* (100 % av hovedmål og 40 % av delmål). Prosentandelen klimarelevant (to-års gjennomsnitt i år t-1 og t) brukes for å beregne klimabistand av årlige kapitalinnskudd til Norfund.
+
+-   Multilateral klimarelevant kjernestøtte (beregnet): Beregnet klimaandel av kjernestøtte til multilaterale organisasjoner. OECD publiserer beregninger av hvor stor prosentandel de største multilaterale organisasjonene bruker på klimatiltak (2-års gjennomsnitt i årene t-1 og t). Prosentandelene brukes for å beregne klimabistand av Norges kjernestøtte til organisasjonene. Beregnet multilateral kjernestøtte skiller ikke mellom *climate change adaptation* og *climate change mitigation*, og kan derfor ikke fordeles på tilpasning og utslippsreduksjon. I påvente av offisielle 2020-beregninger har Norad laget foreløpige beregninger basert på OECDs 2019-beregninger, dvs. organisasjonenes klimaandel av samlede investeringer i 2018-19, og 2020-tallene oppdateres dermed når OECD publiserer offisielle 2020-beregninger.
+
+## Tillegg: Klimafinansiering (UNFCCC)
+
+I presentasjon og omtale av norsk *klimabistand* brukes statistikken og metoden beskrevet over. I Norges rapportering av *klimafinansiering* til Klimakonvensjonen brukes imidlertid en egen metode. De to metodene tjener ulike formål, og under er en beskrivelse av forskjellene, som også gir ulike beløpsstørrelser.
+
+-   Klimabistand er avgrenset til ODA (offisiell bistand), mens klimafinansiering ikke har en slik avgrensning. Klima*bistanden* inkluderer en beregnet klimaandel av de årlige ODA-kapitaliseringene av Norfund. I klima*finansieringen* inkluderes istedet Norfunds klimaspesifikke enkeltinvesteringer, som statistikkføres som *other official flows* (OOF). En konsekvens er at klimafinansieringen kan ha større årlige svingninger enn klimabistanden.
+
+-   Enkelte ODA-godkjente mottakerland, som per definisjon inngår i klimabistanden, inngår ikke i rapporteringen av klimafinansiering til Klimakonvensjonen.
+
+-   I klimabistanden er beløpene i netto utbetalinger, som innebærer at tilbakebetalinger regnes som negativ klimabistand. I klimafinansieringen er beløpene brutto utbetalinger, slik at tilbakebetalinger og salg ikke registreres som negativ klimafinansiering.
+
+```{r}
+df_fin_total <- readxl::read_xlsx(here("output", "klimatabeller.xlsx"), sheet = 6)
+
+df_fin_total <- df_fin_total %>%
+  pivot_longer(cols = !channel,
+               names_to = "year",
+               values_to = "nok_mill")
+
+df_fin_total <- df_fin_total %>%
+  filter(year > 2014)
+
+df_fin_total <- df_fin_total %>%
+  pivot_wider(names_from = channel,
+              values_from = nok_mill) %>%
+  rowwise() %>%
+  mutate(earmarked = sum(
+    c(`Earmarked climate finance (ex. Norfund)`,
+      `Norfund investments (climate share)`))) %>%
+  ungroup()
+
+df_fin_total <- df_fin_total %>%
+  select(year, earmarked, `Imputed multialteral climate share`, `Total climate finance`) %>%
+  rename("Øremerket klimafinansiering" = earmarked,
+         "Klimarelatert multilateral kjernestøtte" = `Imputed multialteral climate share`,
+         "Total klimafinansiering" = `Total climate finance`)
+
+df_fin_total <- df_fin_total %>%
+  mutate(across(where(is.numeric), ~ round(.x, 0)))
+
+```
+
+```{r}
+hc_fin1 <- df_fin_total %>%
+  hchart('column',
+         hcaes(x = year, y = `Total klimafinansiering`),
+         name = "Total",
+         color = hex_to_rgba("#23716D", 0.5),
+         showInLegend = TRUE) %>%
+  hc_title(text = "Total klimafinansiering",
+           align = "left") %>%
+  hc_subtitle(text = "Beregnet klimafinansiering i millioner kroner",
+              align = "left") %>%
+  hc_xAxis(title = NULL) %>%
+  hc_yAxis(title = list(text = "Millioner kroner"),
+           labels = list(format = "{value}")) %>%
+  hc_exporting(enabled = TRUE)
+
+hc_fin1
+```
