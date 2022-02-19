@@ -1,0 +1,54 @@
+/* Logo after TOC */
+#TOC::after {
+  content: "";
+  display: block;
+  height: 50px;
+  margin: 15px 0px 15px;
+  background-image: url("norad_logo_black_small_rgb_micro.png");
+  background-size: contain;
+  background-position: left center;
+  background-repeat: no-repeat;
+}
+
+/* TOC - table of content */
+.tocify {
+  border: none;   /*Removes border */
+  border-radius: 0px; /* Gets rid of rounded corners on TOC */
+  font-size: 16px;
+}
+
+/* body font size */
+body{
+  font-size: 12pt;
+}
+
+
+/* Adding whitespace after author */
+.author {
+  margin-bottom: 1.5em;
+}
+
+/* Adding whitespace on top */
+.main-container {
+    margin-top: 50px;
+}
+
+/* Links color */
+a { 
+  color: #437793;
+}
+
+/* Links color when hovering */
+a:hover {
+ color: #437793; 
+}
+
+/* active link */
+a:active {
+  color: #437793;
+}
+
+/* visited link */
+a:visited {
+  color: #437793;
+}
