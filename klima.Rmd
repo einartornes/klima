@@ -1,10 +1,12 @@
 ---
-title: "Klimabistand [dev]"
+title: "Klimabistand"
+author: "[Norad](https://www.norad.no/) / [Seksjon for statistikk og analyse](mailto:norad-statistikk.og.analyse@norad.no)"
 output:
   html_document:
     theme: flatly
     toc: true
     toc_float: true
+    css: style.css
 ---
 
 ```{r setup, include=FALSE}
@@ -92,7 +94,7 @@ hc2 <- df_total_2 %>%
 
   hc_title(text = "Total klimabistand, fordelt på bistandstype",
            align = "left") %>%
-  hc_subtitle(text = "Beregnet øremerket klimabisand og beregnet klimaandel av multilateral kjernestøtte",
+  hc_subtitle(text = "Beregnet øremerket klimabistand og beregnet klimaandel av multilateral kjernestøtte",
               align = "left") %>%
   hc_xAxis(title = NULL) %>%
   hc_yAxis(title = list(text = "Millioner kroner"),
@@ -400,11 +402,11 @@ vec_max_mitig_pst <- df_ad_mit_pst %>%
 
 Klimabistand omfatter beregnet øremerket støtte og beregnet multilateral kjernestøtte til klimatiltak.
 
--   Øremerket bistand til klima (beregnet): Utbetalinger til tiltak markert med rio-markørene *Climate change adaptation* og *Climate change mitigation*. Inkluderer 100 % av utbetalinger til tiltak om adaptation/mitigation er hovedmål i tiltaket og 40 % av utbetalingene om adaptation/mitigation er et delmål. Beløpene er netto utbetalinger, som innebærer at tilbakeføringer regnes som negativ klimabistand. I tillegg inkluderes en beregnet klimaandel av årlige kapitalinnskudd til Norfund tilsvarende metodikken for å beregne klimarelevant kjernestøtte til multilaterale organisasjoner (under). Identifiserer prosentandelen av Norfunds totale bruttoinvesteringer i fornybar energi, markert med *climate change mitigation* (100 % av hovedmål og 40 % av delmål). Prosentandelen klimarelevant (to-års gjennomsnitt i år t-1 og t) brukes for å beregne klimabistand av årlige kapitalinnskudd til Norfund.
+-   Øremerket bistand til klima (beregnet): Utbetalinger til tiltak markert med rio-markørene *Climate change adaptation* og *Climate change mitigation*. Inkluderer 100 % av utbetalinger til tiltak om adaptation/mitigation er hovedmål i tiltaket og 40 % av utbetalingene om adaptation/mitigation er et delmål. Beløpene er netto utbetalinger, som innebærer at tilbakeføringer regnes som negativ klimabistand. I tillegg inkluderes en beregnet klimaandel av årlige kapitalinnskudd til Norfund tilsvarende metodikken for å beregne klimarelevant kjernestøtte til multilaterale organisasjoner (under). Det gjøres ved å identifisere prosentandelen av Norfunds totale bruttoinvesteringer i fornybar energi, markert med *climate change mitigation* (100 % av hovedmål og 40 % av delmål). Prosentandelen klimarelevant (to-års gjennomsnitt i år t-1 og t) brukes for å beregne klimabistand av årlige kapitalinnskudd til Norfund.
 
 -   Multilateral klimarelevant kjernestøtte (beregnet): Beregnet klimaandel av kjernestøtte til multilaterale organisasjoner. OECD publiserer beregninger av hvor stor prosentandel de største multilaterale organisasjonene bruker på klimatiltak (2-års gjennomsnitt i årene t-1 og t). Prosentandelene brukes for å beregne klimabistand av Norges kjernestøtte til organisasjonene. Beregnet multilateral kjernestøtte skiller ikke mellom *climate change adaptation* og *climate change mitigation*, og kan derfor ikke fordeles på tilpasning og utslippsreduksjon. I påvente av offisielle 2020-beregninger har Norad laget foreløpige beregninger basert på OECDs 2019-beregninger, dvs. organisasjonenes klimaandel av samlede investeringer i 2018-19, og 2020-tallene oppdateres dermed når OECD publiserer offisielle 2020-beregninger.
 
-## Tillegg: Klimafinansiering (UNFCCC)
+## Tillegg: Klimafinansiering
 
 I presentasjon og omtale av norsk *klimabistand* brukes statistikken og metoden beskrevet over. I Norges rapportering av *klimafinansiering* til Klimakonvensjonen brukes imidlertid en egen metode. De to metodene tjener ulike formål, og under er en beskrivelse av forskjellene, som også gir ulike beløpsstørrelser.
 
