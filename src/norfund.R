@@ -11,7 +11,7 @@ library(noradstats)
 
 #devtools::install_github("einartornes/noradstats")
 
-df_orig <- noradstats::read_aiddata(here("data", "oda_oof_ten.csv"))
+df_orig <- noradstats::read_aiddata(here("data", "statsys_ten.csv"))
 
 
 # 1. First dataframe on Norfunds climaete relevant investments -------------------------

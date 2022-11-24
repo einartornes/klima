@@ -23,7 +23,7 @@ source(here("src" ,"norfund.R"))
 
 
 # ODA data
-df_orig <- read_aiddata(here("data", "oda_oof_ten.csv"))
+df_orig <- read_aiddata(here("data", "statsys_ten.csv"))
 
 df_oda <- noradstats::add_cols_climate(df_orig)
 
