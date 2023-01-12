@@ -19,11 +19,11 @@ source(here("src", "get_data.R"))
 source(here("src" ,"norfund.R"))
 
 # Laster ned data på imputed shares.
-#noradstats::download_aiddata("imputed_multilateral_shares_climate.xlsx", subdir = T)
+noradstats::get_aiddata("imputed_multilateral_shares_climate.xlsx", here("data", "imputed_multilateral_shares_climate.xlsx"))
 
 
 # ODA data
-df_orig <- read_aiddata(here("data", "oda_oof_ten.csv"))
+df_orig <- read_aiddata(here("data", "statsys_ten.csv"))
 
 df_oda <- noradstats::add_cols_climate(df_orig)
 
