@@ -13,14 +13,15 @@ library(writexl)
 #devtools::install_github("einartornes/noradstats", force = TRUE)
 
 # # Download data
-source(here("src", "get_data.R"))
+# source(here("src", "get_data.R"))
 
 # Norfund data from separate script
-source(here("src" ,"norfund.R"))
+# source(here("src" ,"norfund.R"))
 
-# Laster ned data på imputed shares.
-noradstats::get_aiddata("imputed_multilateral_shares_climate.xlsx", here("data", "imputed_multilateral_shares_climate.xlsx"))
+# Laster ned data på imputed shares og Norfund
+df_multi <- read_csv(here("output", "imputed_multilateral_climate.csv"))
 
+df_norfund <- read_csv(here("output/df_norfund.csv"))
 
 # ODA data
 df_orig <- read_aiddata(here("data", "statsys_ten.csv"))
@@ -39,13 +40,6 @@ df_oda_oof <- noradstats::add_cols_climate(df_orig) %>%
   filter(type_of_agreement != "Rammeavtale") %>%
   filter(year >= 2014)
 
-# Multilateral climate aid (OECD)
-df_multi <- readxl::read_xlsx(here("data", "imputed_multilateral_shares_climate.xlsx"), sheet = 1)
-
-# Ekskluderer UNDP
-df_multi <- df_multi %>%
-  filter(agreement_partner != "UNDP - UN Development Programme")
-
 rm(df_orig)
 # Total climate ODA -------------------------------------------------------
 
@@ -59,12 +53,13 @@ df_earmarked_ex_nf <- df_oda %>%
 # Norfund capitalisation climate share
 df_norfund_cap <- df_norfund %>%
   filter(year >= 2014) %>%
-  select(year, climate_mitigation_share_capitalisation_2yr_avg_mnok) %>%
+  select(year, mitigation_share_capitalisation_2yr_avg_mnok) %>%
   add_column("channel" = "Norfund capitalisation (climate share)") %>%
-  rename("mnok" = "climate_mitigation_share_capitalisation_2yr_avg_mnok")
+  rename("mnok" = mitigation_share_capitalisation_2yr_avg_mnok)
 
 # Multilateral climate aid
 df_multi_total <- df_multi %>%
+  filter(!is.na(climate_aid_mnok)) |> 
   filter(year >= 2014) %>%
   mutate(year = as.numeric(year)) %>%
   group_by(year) %>%
@@ -81,13 +76,6 @@ df_total_tbl <- df_total %>%
   adorn_totals("row", name = "Total climate aid")
 
 rm(df_earmarked_ex_nf, df_multi_total)
-
-# Share of total aid
-
-# Share of earmarked aid
-# df_total_aid <- df_oda %>%
-#   group_by(year) %>%
-#   summarise(total_aid = sum(disbursed_mill_nok))
 
 
 # Adaptation and mitigation -----------------------------------------------------
@@ -174,21 +162,29 @@ df_climate_aid_type_3levels_pst_tbl <- df_climate_aid_type_3levels_pst %>%
 # Climate finance (UNFCCC-metholology) ---------------------------------------------------------
 
 # Earmarked climate aid ex. Norfund
+# Making sure to exclude the capitalisation of Norfund CIF as it is mitigation marked
 df_earmarked_gross_ex_nf <- df_oda %>%
+  filter(agreement_number != "QZA-22/0133") |> 
   group_by(year) %>%
-  summarise(mnok = sum(climate_aid_nok_gross_fix) / 1000000) %>%
+  summarise(mnok = sum(climate_aid_nok_gross_fix) / 1e6) %>%
   ungroup() %>%
   add_column("channel" = "Earmarked climate finance (ex. Norfund)")
 
-# Norfund climate investments: targeting adaptation or mitigation
-df_norfund_climate_finance <- df_norfund %>%
+
+# Norfund (DIM and CIM) estimated climate investments (both adaptation or mitigation).
+df_norfund_climate_finance <- df_oda_oof %>%
+  filter(type_of_flow == "OOF") %>%
+  filter(type_of_assistance != "Administration") %>%
+  filter(extending_agency == "Norfund") %>%
   filter(year >= 2014) %>%
-  select(year, total_gross_climate_investment_mnok) %>%
-  add_column("channel" = "Norfund investments (climate share)") %>%
+  group_by(year) %>%
+  summarise(total_gross_climate_investment_mnok = sum(climate_aid_nok_gross_fix / 1e6)) |> 
+  add_column("channel" = "Norfund investments (climate share)") |> 
   rename("mnok" = "total_gross_climate_investment_mnok")
 
 # Multilateral climate aid
 df_multi_total <- df_multi %>%
+  filter(!is.na(climate_aid_mnok)) |> 
   filter(year >= 2014) %>%
   mutate(year = as.numeric(year)) %>%
   group_by(year) %>%
@@ -208,31 +204,23 @@ rm(df_earmarked_gross_ex_nf, df_norfund_climate_finance, df_multi_total)
 
 # Climate finance type (UNFCCC-methodology) adaptation, mitigation ----
 
-df_oda_oof <- df_oda_oof %>%
-  mutate(amounts_extended_1000_nok = if_else(amounts_extended_1000_nok < 0, 0, amounts_extended_1000_nok))
-
-df_adaptation_oda_oof <- df_oda_oof %>%
-  mutate(mnok = dplyr::case_when(pm_climate_change_adaptation == "Main objective" ~ 
-                                                     amounts_extended_1000_nok / 1000, 
-                                 pm_climate_change_adaptation == "Significant objective" ~ 
-                                                     (amounts_extended_1000_nok / 1000) * 0.4,
-                                    TRUE ~ as.numeric(0))) %>%
-  group_by(year) %>%
-  summarise(mnok = sum(mnok)) %>%
-  add_column("climate_aid_type" = "Adaptation") %>%
-  ungroup()
-
-df_mitigation_oda_oof <- df_oda_oof %>%
-  mutate(mnok = dplyr::case_when(pm_climate_change_mitigation == "Main objective" ~ 
-                                   amounts_extended_1000_nok / 1000, 
-                                 pm_climate_change_mitigation == "Significant objective" ~ 
-                                   (amounts_extended_1000_nok / 1000) * 0.4,
-                                 TRUE ~ as.numeric(0))) %>%
-  group_by(year) %>%
-  summarise(mnok = sum(mnok)) %>%
+# Mitigation: removing capitalisation of CIF as it is mitigation marked
+df_mitigation_oda_oof <- df_oda_oof |>
+  filter(agreement_number != "QZA-22/0133") |> 
+  filter(year >= 2014) %>%
+  group_by(year) |> 
+  summarise(mnok = sum(climate_mitigation_nok_mill_gross_fix)) |> 
   add_column("climate_aid_type" = "Mitigation") %>%
   ungroup()
 
+# Adaptation
+df_adaptation_oda_oof <- df_oda_oof |>
+  filter(agreement_number != "QZA-22/0133") |> 
+  filter(year >= 2014) %>%
+  group_by(year) |> 
+  summarise(mnok = sum(climate_adaptation_nok_mill_gross_fix)) |> 
+  add_column("climate_aid_type" = "Adaptation") %>%
+  ungroup()
 
 df_climate_aid_type_oda_oof <- bind_rows(df_adaptation_oda_oof, df_mitigation_oda_oof)
 
@@ -244,9 +232,11 @@ rm(df_mitigation_oda_oof, df_adaptation_oda_oof)
 
 # Climate finance type (UNFCCC-methodology) adaptation, mitigation, cross-cutting ----
 df_climate_finance_type_3levels <- df_oda_oof %>%
+  filter(agreement_number != "QZA-22/0133") |> 
   filter(climate_aid_type != "None") %>%
+  filter(year >= 2014) %>%
   group_by(climate_aid_type, year) %>%
-  summarise(mnok = sum(climate_aid_nok_gross_fix / 1000000)) %>%
+  summarise(mnok = sum(climate_aid_nok_gross_fix / 1e6)) %>%
   ungroup()
 
 df_climate_finance_type_3levels_tbl <- df_climate_finance_type_3levels %>%
