@@ -245,7 +245,7 @@ df_climate_finance_type_3levels_tbl <- df_climate_finance_type_3levels %>%
   arrange(climate_aid_type) %>%
   adorn_totals("row", name = "Total earmarked climate finance")
 
-# Write tables to xlsx file -----------------------------------------------
+# Write tables to xlsx file ----------------------------------------------
 
 if(file.exists(here("output")) == FALSE) {
   dir.create(here("output"))
