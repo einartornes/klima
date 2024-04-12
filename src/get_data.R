@@ -14,8 +14,7 @@ googledrive::drive_auth(email = "noradstats@gmail.com")
 googledrive::drive_find()
 
 # Selecting files to download
-files <- c("statsys_ten.csv","imputed_multilateral_shares_climate.xlsx",
-           "norfund_capitalisation_agreements.xlsx")
+files <- c("norfund_capitalisation_agreements.xlsx")
 
 # Filepaths to subfolder data/
 paths <- paste0(here("data", files))

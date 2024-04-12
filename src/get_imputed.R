@@ -38,13 +38,17 @@ df_oda <- df_oda |>
   filter(type_of_flow == "ODA") |> 
   filter(type_of_agreement != "Rammeavtale") |> 
   filter(type_of_assistance == "Core contributions to multilat") |> 
-  select(agreement_partner, year, disbursed_nok)
+  mutate(amounts_extended_nok = if_else(amounts_extended_1000_nok < 0, 0, amounts_extended_1000_nok * 1000)) |> 
+  select(agreement_partner, year, disbursed_nok, amounts_extended_nok)
+
 
 # Calculate imputed multilateral climate aid -----------------------------
 df_multi <- left_join(df_imputed_multilateral_marker, df_oda, by = c("agreement_partner", "year"))
 
 df_multi <- df_multi |> 
-  mutate(climate_aid_mnok = disbursed_nok * share / 1e6)
+  mutate(climate_aid_mnok = disbursed_nok * share / 1e6,
+         climate_finance_mnok = amounts_extended_nok * share / 1e6)
+
 
 # Save as csv in output folder
 write_csv(df_multi, here("output", "imputed_multilateral_climate.csv"))

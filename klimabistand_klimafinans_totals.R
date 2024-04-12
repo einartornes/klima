@@ -13,10 +13,13 @@ library(writexl)
 #devtools::install_github("einartornes/noradstats", force = TRUE)
 
 # # Download data
-# source(here("src", "get_data.R"))
+source(here("src", "get_data.R"))
 
 # Norfund data from separate script
-# source(here("src" ,"norfund.R"))
+source(here("src" ,"norfund.R"))
+
+# Imputed data from separate script
+source(here("src" ,"get_imputed.R"))
 
 # Laster ned data på imputed shares og Norfund
 df_multi <- read_csv(here("output", "imputed_multilateral_climate.csv"))
